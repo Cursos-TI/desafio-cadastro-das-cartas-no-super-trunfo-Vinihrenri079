@@ -1,0 +1,314 @@
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <time.h>
+
+// --- 1. ESTRUTURA DE DADOS (STRUCTS) ---
+
+// Struct para representar um Território
+typedef struct {
+    char nome[50];
+    char cor_jogador[20]; // Nome do jogador ou cor (Ex: "Vermelho")
+    int tropas;
+} Territorio;
+
+// Struct para representar uma Missão
+typedef struct {
+    int id_missao;
+    char descricao[100];
+    // Ponteiro de função para verificar a condição de vitória
+    int (*condicao_vitoria)(Territorio *, int);
+} Missao;
+
+// Variável global (por simplicidade) para o número total de territórios
+int num_territorios = 0;
+
+// --- 2. FUNÇÕES DE CADASTRO E INICIALIZAÇÃO ---
+
+/**
+ * @brief Inicializa os territórios com dados básicos.
+ * @param territorios Ponteiro para o vetor de Territorios.
+ * @param tamanho Tamanho máximo do vetor.
+ */
+void inicializar_territorios(Territorio **territorios, int *tamanho) {
+    // Definimos um tamanho inicial para o vetor
+    *tamanho = 5;
+    num_territorios = *tamanho;
+
+    // Alocação dinâmica para o vetor de structs
+    *territorios = (Territorio *)malloc(*tamanho * sizeof(Territorio));
+    if (*territorios == NULL) {
+        perror("Erro na alocação de memória para territórios");
+        exit(EXIT_FAILURE);
+    }
+
+    // Cadastro de dados básicos
+    strcpy((*territorios)[0].nome, "Alaska");
+    strcpy((*territorios)[0].cor_jogador, "Azul");
+    (*territorios)[0].tropas = 5;
+
+    strcpy((*territorios)[1].nome, "Texas");
+    strcpy((*territorios)[1].cor_jogador, "Azul");
+    (*territorios)[1].tropas = 3;
+
+    strcpy((*territorios)[2].nome, "Brasil");
+    strcpy((*territorios)[2].cor_jogador, "Vermelho");
+    (*territorios)[2].tropas = 7;
+
+    strcpy((*territorios)[3].nome, "Egito");
+    strcpy((*territorios)[3].cor_jogador, "Vermelho");
+    (*territorios)[3].tropas = 4;
+    
+    strcpy((*territorios)[4].nome, "Siberia");
+    strcpy((*territorios)[4].cor_jogador, "Verde");
+    (*territorios)[4].tropas = 10;
+
+    printf("✅ %d Territórios iniciais cadastrados.\n", num_territorios);
+}
+
+// --- 3. FUNÇÕES DE ALOCAÇÃO DINÂMICA PARA O ATAQUE ---
+
+/**
+ * @brief Simula o lançamento de dados War (1 a 6).
+ * @param num_dados Número de dados a serem lançados (máximo 3 para ataque, 2 para defesa).
+ * @return Ponteiro para o array alocado dinamicamente com os resultados.
+ */
+int *lancar_dados(int num_dados) {
+    if (num_dados <= 0) return NULL;
+
+    // Alocação dinâmica para armazenar os resultados dos dados
+    // Retorna um ponteiro para o início deste bloco de memória
+    int *resultados = (int *)malloc(num_dados * sizeof(int));
+    if (resultados == NULL) {
+        perror("Erro na alocação de dados");
+        exit(EXIT_FAILURE);
+    }
+
+    // Preenche o array com valores aleatórios (1 a 6)
+    for (int i = 0; i < num_dados; i++) {
+        resultados[i] = (rand() % 6) + 1; // rand() % 6 gera 0-5, +1 gera 1-6
+    }
+    
+    return resultados;
+}
+
+/**
+ * @brief Função auxiliar para ordenar os resultados dos dados em ordem decrescente.
+ * @param arr Array de resultados.
+ * @param n Tamanho do array.
+ */
+void ordenar_dados(int arr[], int n) {
+    // Uso de Bubble Sort simples para ordenar do maior para o menor
+    for (int i = 0; i < n - 1; i++) {
+        for (int j = 0; j < n - i - 1; j++) {
+            if (arr[j] < arr[j + 1]) {
+                int temp = arr[j];
+                arr[j] = arr[j + 1];
+                arr[j + 1] = temp;
+            }
+        }
+    }
+}
+
+/**
+ * @brief Simula um único confronto de dados e atualiza as tropas.
+ */
+void confrontar_dados(int dado_atacante, int dado_defensor, 
+                      Territorio *atacante, Territorio *defensor) {
+    if (dado_atacante > dado_defensor) {
+        // Atacante vence: Defensor perde 1 tropa
+        defensor->tropas--;
+        printf("  - Atacante vence (%d > %d)! %s perde 1 tropa.\n", dado_atacante, dado_defensor, defensor->nome);
+    } else { // Inclui empate, onde o defensor sempre vence
+        // Defensor vence: Atacante perde 1 tropa
+        atacante->tropas--;
+        printf("  - Defensor vence (%d <= %d)! %s perde 1 tropa.\n", dado_atacante, dado_defensor, atacante->nome);
+    }
+}
+
+// --- 4. FUNCIONALIDADE DE ATAQUE ---
+
+/**
+ * @brief Simula um ataque entre dois territórios.
+ * @param atacante Ponteiro para o Território atacante.
+ * @param defensor Ponteiro para o Território defensor.
+ * @param dados_ataque Número de dados usados no ataque (1 a 3).
+ * @param dados_defesa Número de dados usados na defesa (1 a 2).
+ */
+void simular_ataque(Territorio *atacante, Territorio *defensor, int dados_ataque, int dados_defesa) {
+    printf("\n⚔️ **SIMULAÇÃO DE ATAQUE**\n");
+    printf("  %s (%s, %d tropas) ➡️ %s (%s, %d tropas)\n", 
+           atacante->nome, atacante->cor_jogador, atacante->tropas, 
+           defensor->nome, defensor->cor_jogador, defensor->tropas);
+
+    // 1. Lançar e armazenar dados dinamicamente
+    int *resultados_ataque = lancar_dados(dados_ataque);
+    int *resultados_defesa = lancar_dados(dados_defesa);
+
+    // 2. Ordenar dados (do maior para o menor) para confrontar
+    ordenar_dados(resultados_ataque, dados_ataque);
+    ordenar_dados(resultados_defesa, dados_defesa);
+
+    printf("  🎲 Dados Ataque: ");
+    for(int i = 0; i < dados_ataque; i++) printf("%d ", resultados_ataque[i]);
+    printf("\n");
+    
+    printf("  🛡️ Dados Defesa: ");
+    for(int i = 0; i < dados_defesa; i++) printf("%d ", resultados_defesa[i]);
+    printf("\n");
+    
+    // 3. Confrontar os dados (o menor número de dados lançados define quantos confrontos)
+    int confrontos = (dados_ataque < dados_defesa) ? dados_ataque : dados_defesa;
+
+    for (int i = 0; i < confrontos; i++) {
+        confrontar_dados(resultados_ataque[i], resultados_defesa[i], atacante, defensor);
+    }
+
+    // 4. Liberar a memória alocada dinamicamente
+    free(resultados_ataque);
+    free(resultados_defesa);
+
+    printf("  **RESULTADO PÓS-BATALHA**:\n");
+    printf("  - %s: %d tropas restantes.\n", atacante->nome, atacante->tropas);
+    printf("  - %s: %d tropas restantes.\n", defensor->nome, defensor->tropas);
+
+    // 5. Verificar se o defensor perdeu o território
+    if (defensor->tropas <= 0) {
+        printf("🎉 **%s foi conquistado!** O jogador %s assume o controle.\n", defensor->nome, atacante->cor_jogador);
+        defensor->tropas = 1; // Mover 1 tropa mínima para o novo território
+        strcpy(defensor->cor_jogador, atacante->cor_jogador);
+        atacante->tropas--; // A tropa movida saiu do território atacante
+    }
+}
+
+// --- 5. SISTEMA DE MISSÕES E VERIFICAÇÃO DE VITÓRIA ---
+
+/**
+ * @brief Condição de Missão 1: Conquistar um certo número de territórios.
+ */
+int missao_conquistar_territorios(Territorio *territorios, int tamanho) {
+    int alvo_territorios = 10; // Exemplo: Alvo de 10 territórios
+    char *jogador_alvo = "Azul"; // Jogador a ser verificado
+    int contagem = 0;
+
+    for (int i = 0; i < tamanho; i++) {
+        if (strcmp(territorios[i].cor_jogador, jogador_alvo) == 0) {
+            contagem++;
+        }
+    }
+
+    printf("  - Progresso Missão 'Azul': %d/%d territórios.\n", contagem, alvo_territorios);
+    return contagem >= alvo_territorios;
+}
+
+/**
+ * @brief Condição de Missão 2: Eliminar um jogador específico.
+ */
+int missao_eliminar_jogador(Territorio *territorios, int tamanho) {
+    char *jogador_alvo_eliminacao = "Verde"; 
+    int contagem_territorios_alvo = 0;
+
+    for (int i = 0; i < tamanho; i++) {
+        if (strcmp(territorios[i].cor_jogador, jogador_alvo_eliminacao) == 0) {
+            contagem_territorios_alvo++;
+        }
+    }
+
+    printf("  - Progresso Missão 'Eliminar Verde': %s ainda tem %d territórios.\n", 
+           jogador_alvo_eliminacao, contagem_territorios_alvo);
+    return contagem_territorios_alvo == 0;
+}
+
+/**
+ * @brief Inicializa e aloca dinamicamente o sistema de missões.
+ * @param missoes Ponteiro para o ponteiro que irá apontar para o array de Missões.
+ * @param num_missoes Número de missões a serem criadas.
+ */
+void inicializar_missoes(Missao **missoes, int num_missoes) {
+    // Alocação dinâmica para o vetor de structs Missao
+    *missoes = (Missao *)malloc(num_missoes * sizeof(Missao));
+    if (*missoes == NULL) {
+        perror("Erro na alocação de missões");
+        exit(EXIT_FAILURE);
+    }
+    
+    // Cadastro da Missão 1
+    (*missoes)[0].id_missao = 1;
+    strcpy((*missoes)[0].descricao, "Conquistar 10 territórios para o jogador Azul.");
+    // Atribui o ponteiro de função
+    (*missoes)[0].condicao_vitoria = missao_conquistar_territorios;
+
+    // Cadastro da Missão 2
+    (*missoes)[1].id_missao = 2;
+    strcpy((*missoes)[1].descricao, "Eliminar o jogador Verde.");
+    // Atribui o ponteiro de função
+    (*missoes)[1].condicao_vitoria = missao_eliminar_jogador;
+
+    printf("✅ %d Missões estratégicas iniciais alocadas.\n", num_missoes);
+}
+
+/**
+ * @brief Verifica o estado de todas as missões para o jogador em foco.
+ */
+void verificar_condicao_vitoria(Missao *missoes, int num_missoes, Territorio *territorios, int tamanho_territorios) {
+    printf("\n⭐ **VERIFICAÇÃO DE CONDIÇÃO DE VITÓRIA (MISSÕES)**\n");
+    for (int i = 0; i < num_missoes; i++) {
+        printf("  - Missão %d: %s\n", missoes[i].id_missao, missoes[i].descricao);
+
+        // Chamada ao ponteiro de função
+        if (missoes[i].condicao_vitoria(territorios, tamanho_territorios)) {
+            printf("  ➡️ **CONDIÇÃO DE VITÓRIA ALCANÇADA! FIM DE JOGO.**\n");
+            // Se uma missão for alcançada, podemos encerrar o loop e o jogo
+            exit(EXIT_SUCCESS); 
+        }
+    }
+    printf("  ➡️ Nenhuma condição de vitória alcançada ainda.\n");
+}
+
+
+// --- 6. FUNÇÃO PRINCIPAL ---
+
+int main() {
+    // Inicialização da semente do gerador de números aleatórios
+    srand(time(NULL));
+
+    // --- CADASTRO DOS DADOS (VETOR DE STRUCTS) ---
+    Territorio *territorios = NULL; // Ponteiro que irá apontar para o vetor alocado
+    int tamanho_vetor_territorios = 0;
+    
+    inicializar_territorios(&territorios, &tamanho_vetor_territorios);
+
+    // --- SISTEMA DE MISSÕES (ALOCAÇÃO DINÂMICA E PONTEIROS DE FUNÇÃO) ---
+    Missao *missoes = NULL;
+    int num_missoes = 2;
+    
+    inicializar_missoes(&missoes, num_missoes);
+    
+    printf("\n--- ESTADO INICIAL DO JOGO ---\n");
+    for (int i = 0; i < num_territorios; i++) {
+        printf("T%d: %s | Jogador: %s | Tropas: %d\n", 
+               i+1, territorios[i].nome, territorios[i].cor_jogador, territorios[i].tropas);
+    }
+    printf("------------------------------\n");
+
+    // --- FUNCIONALIDADE DE ATAQUE (ALOCAÇÃO DINÂMICA E PONTEIROS) ---
+
+    // Exemplo de Ataque 1: Alaska (Azul) ataca Brasil (Vermelho)
+    // O atacante usa 3 dados e o defensor usa 2 dados
+    simular_ataque(&territorios[0], &territorios[2], 3, 2);
+
+    // Exemplo de Ataque 2: Siberia (Verde) ataca Texas (Azul)
+    // O atacante usa 2 dados e o defensor usa 1 dado
+    simular_ataque(&territorios[4], &territorios[1], 2, 1);
+    
+    // --- VERIFICAR CONDIÇÃO DE VITÓRIA ---
+    verificar_condicao_vitoria(missoes, num_missoes, territorios, tamanho_vetor_territorios);
+
+
+    // 7. LIBERAÇÃO DE MEMÓRIA
+    printf("\n🧹 Liberando memória alocada dinamicamente...\n");
+    free(territorios); // Libera o vetor de structs Territorio
+    free(missoes);     // Libera o vetor de structs Missao
+
+    return 0;
+}
